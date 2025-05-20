@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:confetti/confetti.dart';
+import 'package:flutter/services.dart';
+import 'package:confetti/confetti.dart'; // Add to pubspec.yaml
 
 void main() {
   runApp(const TodoApp());
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(statusBarColor: Colors.transparent),
+  );
 }
 
-// ======================= MAIN APP =======================
+// ======================= APP CORE =======================
 class TodoApp extends StatelessWidget {
   const TodoApp({super.key});
 
@@ -14,9 +18,18 @@ class TodoApp extends StatelessWidget {
     return MaterialApp(
       title: 'Chef To-Do',
       debugShowCheckedModeBanner: false,
+      themeMode: ThemeMode.system, // Auto dark/light
       theme: ThemeData(
         colorScheme: ColorScheme.light(
-          primary: Colors.teal.shade600, // Updated primary color
+          primary: Colors.blue.shade600,
+          secondary: Colors.orange.shade400,
+        ),
+        useMaterial3: true,
+      ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.dark(
+          primary: Colors.blue.shade300,
+          secondary: Colors.orange.shade300,
         ),
         useMaterial3: true,
       ),
@@ -25,7 +38,7 @@ class TodoApp extends StatelessWidget {
   }
 }
 
-// ======================= AUTH HANDLER =======================
+// ======================= AUTH WRAPPER =======================
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
@@ -34,17 +47,20 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
-  bool _isLoggedIn = false;
-  final ConfettiController _confettiController = ConfettiController();
+  bool _isLoggedIn = false; // Simulated auth state
 
-  void _login() {
-    setState(() => _isLoggedIn = true);
-    _confettiController.play();
-    Future.delayed(const Duration(seconds: 2), _confettiController.stop);
+  void _toggleAuth(bool success) {
+    setState(() {
+      _isLoggedIn = success;
+      if (success) _showConfetti();
+    });
   }
 
-  void _logout() {
-    setState(() => _isLoggedIn = false);
+  final ConfettiController _confettiController = ConfettiController();
+
+  void _showConfetti() {
+    _confettiController.play();
+    Future.delayed(const Duration(seconds: 2), _confettiController.stop);
   }
 
   @override
@@ -59,18 +75,21 @@ class _AuthWrapperState extends State<AuthWrapper> {
       body: Stack(
         children: [
           // Main Content
-          _isLoggedIn 
-              ? TodoScreen(onLogout: _logout) 
-              : LoginScreen(onLogin: _login),
+          _isLoggedIn ? const TodoScreen() : LoginScreen(onLogin: _toggleAuth),
 
-          // Confetti Effect (on login)
+          // Confetti Effect
           Align(
             alignment: Alignment.topCenter,
             child: ConfettiWidget(
               confettiController: _confettiController,
-              blastDirection: 90, // Falls from top
-              emissionFrequency: 0.05,
-              numberOfParticles: 20,
+              blastDirectionality: BlastDirectionality.explosive,
+              shouldLoop: false,
+              colors: const [
+                Colors.green,
+                Colors.blue,
+                Colors.pink,
+                Colors.orange,
+              ],
             ),
           ),
         ],
@@ -81,7 +100,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
 // ======================= LOGIN SCREEN =======================
 class LoginScreen extends StatelessWidget {
-  final VoidCallback onLogin;
+  final Function(bool) onLogin;
 
   const LoginScreen({super.key, required this.onLogin});
 
@@ -93,17 +112,20 @@ class LoginScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // App Icon
-            Icon(
-              Icons.restaurant,
-              size: 100,
-              color: Theme.of(context).colorScheme.primary,
+            // Animated Logo
+            Hero(
+              tag: 'app-logo',
+              child: Icon(
+                Icons.restaurant_menu,
+                size: 100,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
             const SizedBox(height: 32),
 
             // Title
             Text(
-              'Chef To-Do',
+              'Cook with Chef',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
@@ -112,7 +134,7 @@ class LoginScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'One-click login for demo',
+              'Sign in to manage your recipes',
               style: TextStyle(
                 fontSize: 16,
                 color: Theme.of(context).hintColor,
@@ -120,21 +142,39 @@ class LoginScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // Sign In Button (No credentials needed)
-            FilledButton(
-              onPressed: onLogin, // Instant login
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(200, 50),
-                backgroundColor: Colors.teal.shade600,
+            // Login Form
+            Card(
+              elevation: 8,
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: Icon(Icons.email),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: Icon(Icons.lock),
+                      ),
+                      obscureText: true,
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: () => onLogin(true), // Simulate successful login
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                      child: const Text('Sign In'),
+                    ),
+                  ],
+                ),
               ),
-              child: const Text('Sign In Instantly'),
-            ),
-
-            // Optional: Bypass text
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: onLogin,
-              child: const Text('Continue as Guest'),
             ),
           ],
         ),
@@ -145,9 +185,7 @@ class LoginScreen extends StatelessWidget {
 
 // ======================= TODO SCREEN =======================
 class TodoScreen extends StatefulWidget {
-  final VoidCallback onLogout;
-
-  const TodoScreen({super.key, required this.onLogout});
+  const TodoScreen({super.key});
 
   @override
   State<TodoScreen> createState() => _TodoScreenState();
@@ -158,16 +196,26 @@ class _TodoScreenState extends State<TodoScreen> {
   final TextEditingController _todoController = TextEditingController();
 
   void _addTodo() {
-    if (_todoController.text.trim().isNotEmpty) {
-      setState(() {
-        _todos.add(_todoController.text.trim());
-        _todoController.clear();
-      });
-    }
+    if (_todoController.text.trim().isEmpty) return;
+    setState(() {
+      _todos.insert(0, _todoController.text.trim());
+      _todoController.clear();
+    });
   }
 
   void _deleteTodo(int index) {
-    setState(() => _todos.removeAt(index));
+    setState(() {
+      _todos.removeAt(index);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Task deleted')),
+    );
+  }
+
+  @override
+  void dispose() {
+    _todoController.dispose();
+    super.dispose();
   }
 
   @override
@@ -178,7 +226,9 @@ class _TodoScreenState extends State<TodoScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: widget.onLogout,
+            onPressed: () => Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const AuthWrapper()),
+            ),
           ),
         ],
       ),
@@ -204,8 +254,7 @@ class _TodoScreenState extends State<TodoScreen> {
                 const SizedBox(width: 8),
                 FloatingActionButton(
                   onPressed: _addTodo,
-                  backgroundColor: Colors.teal.shade600,
-                  child: const Icon(Icons.add, color: Colors.white),
+                  child: const Icon(Icons.add),
                 ),
               ],
             ),
@@ -214,20 +263,44 @@ class _TodoScreenState extends State<TodoScreen> {
           // Todo List
           Expanded(
             child: _todos.isEmpty
-                ? const Center(
-                    child: Text('No recipes added yet!'),
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.assignment_turned_in,
+                          size: 60,
+                          color: Theme.of(context).hintColor,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No recipes yet!\nStart adding some magic.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Theme.of(context).hintColor,
+                          ),
+                        ),
+                      ],
+                    ),
                   )
                 : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 80),
                     itemCount: _todos.length,
                     itemBuilder: (context, index) {
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 4),
-                        child: ListTile(
-                          title: Text(_todos[index]),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () => _deleteTodo(index),
+                      return Dismissible(
+                        key: Key(_todos[index]),
+                        background: Container(color: Colors.red.shade200),
+                        onDismissed: (_) => _deleteTodo(index),
+                        child: Card(
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 4),
+                          child: ListTile(
+                            title: Text(_todos[index]),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () => _deleteTodo(index),
+                            ),
                           ),
                         ),
                       );
